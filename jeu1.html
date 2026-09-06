@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anglais CE1 - Halloween Vocabulaire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            background-color: #1a1a1a;
+        }
+        
+        .img-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        /* Effet visuel quand l'enfant clique sur une carte */
+        .playing-audio {
+            border-color: #f97316 !important; /* orange-500 */
+            background-color: rgba(249, 115, 22, 0.2) !important;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Décoration de fond animée */
+        #bg-decor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .floating-item {
+            position: absolute;
+            opacity: 0.15;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+            100% { transform: translateY(0) rotate(360deg); }
+        }
+
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        
+        /* Animation du petit haut-parleur */
+        @keyframes pulse-speaker {
+            0% { transform: scale(1); opacity: 0.5;}
+            50% { transform: scale(1.2); opacity: 1;}
+            100% { transform: scale(1); opacity: 0.5;}
+        }
+        .speaker-anim {
+            animation: pulse-speaker 1s infinite;
+            color: #f97316;
+        }
+    </style>
+</head>
+
+<body class="h-[100dvh] w-screen overflow-hidden bg-[#1a1a1a] font-sans text-white touch-manipulation select-none">
+
+    <div id="bg-decor"></div>
+
+    <!-- Conteneur principal qui prend 100% de la hauteur sans jamais nécessiter de scroll -->
+    <div class="flex flex-col items-center justify-start h-full w-full p-2 sm:p-4 max-w-6xl mx-auto">
+        
+        <!-- En-tête compact pour préserver l'espace de jeu -->
+        <div class="shrink-0 glass-card p-2 sm:p-4 rounded-2xl shadow-xl w-full border-2 border-orange-500 mb-3 text-center z-10">
+            <h1 class="text-2xl sm:text-3xl md:text-5xl font-black mb-1 text-orange-500 uppercase tracking-widest">Halloween</h1>
+            <p class="text-xs sm:text-base md:text-lg font-medium opacity-90">
+                Clique sur les images pour les entendre ! 🎧
+            </p>
+        </div>
+
+        <!-- Grille adaptative : 2x4 sur mobile, 4x2 sur ordinateur/tablette. Remplit l'espace restant automatiquement. -->
+        <div id="vocabulary-grid" class="flex-grow min-h-0 w-full grid grid-cols-2 grid-rows-4 md:grid-cols-4 md:grid-rows-2 gap-2 sm:gap-4 pb-2 z-10">
+            <!-- Les cartes seront injectées ici par JavaScript -->
+        </div>
+
+    </div>
+
+    <script>
+        // Le vocabulaire avec les noms de fichiers EXACTS demandés et le déterminant "Uh" pour la prononciation
+        const vocabulary = [
+            { id: 'ghost', word: 'Uh ghost', img: 'ghost.png' },
+            { id: 'monster', word: 'Uh monster', img: 'monster.png' },
+            { id: 'mummy', word: 'Uh mummy', img: 'mummy.png' },
+            { id: 'pirate', word: 'Uh pirate', img: 'pirate.png' },
+            { id: 'pumpkin', word: 'Uh pumpkin', img: 'pumpkin.png' },
+            { id: 'skeleton', word: 'Uh skeleton', img: 'squeleton.png' }, // Nom exact de ton fichier
+            { id: 'vampire', word: 'Uh vampire', img: 'vampire.png' },
+            { id: 'witch', word: 'Uh witch', img: 'witch.png' }
+        ];
+
+        const synth = window.speechSynthesis;
+        let currentAudioTimeout = null;
+
+        // Création du décor de fond
+        function createBackground() {
+            const decorEl = document.getElementById('bg-decor');
+            decorEl.innerHTML = '';
+            const dotColors = ['#f97316', '#7c3aed', '#000000', '#4b5563'];
+            const halloweenIcons = ['🎃', '👻', '🦇', '🕷️', '🕸️', '🧟', '🍬', '🕯️'];
+            
+            for (let i = 0; i < 25; i++) {
+                const div = document.createElement('div');
+                div.className = 'floating-item';
+                if (Math.random() > 0.4) {
+                    const dot = document.createElement('div');
+                    dot.className = 'color-dot';
+                    dot.style.backgroundColor = dotColors[Math.floor(Math.random() * dotColors.length)];
+                    div.appendChild(dot);
+                } else {
+                    div.className += ' text-4xl sm:text-5xl';
+                    div.textContent = halloweenIcons[Math.floor(Math.random() * halloweenIcons.length)];
+                }
+                div.style.left = Math.random() * 100 + 'vw';
+                div.style.top = Math.random() * 100 + 'vh';
+                div.style.animationDuration = (12 + Math.random() * 15) + 's';
+                div.style.animationDelay = (Math.random() * 5) + 's';
+                decorEl.appendChild(div);
+            }
+        }
+
+        // Fonction pour jouer le son et animer la carte
+        function playAudio(word, cardElement) {
+            // Coupe le son précédent si l'élève clique très vite
+            synth.cancel(); 
+            clearTimeout(currentAudioTimeout);
+
+            // Retirer l'animation de toutes les cartes
+            document.querySelectorAll('.img-card').forEach(c => {
+                c.classList.remove('playing-audio');
+            });
+
+            // Configurer la voix
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'en-US'; // Accent américain
+            utterance.rate = 0.8; // Vitesse ralentie pour bien comprendre (CE1)
+            utterance.pitch = 1.1; // Voix un peu plus claire
+
+            // Chercher une voix anglaise de bonne qualité si disponible
+            const voices = synth.getVoices();
+            const englishVoice = voices.find(voice => voice.lang.includes('en-'));
+            if (englishVoice) {
+                utterance.voice = englishVoice;
+            }
+
+            // Lancer la lecture
+            synth.speak(utterance);
+
+            // Activer l'effet visuel sur la carte cliquée
+            cardElement.classList.add('playing-audio');
+
+            // Durée estimée pour dire le mot : ~1.5 secondes
+            currentAudioTimeout = setTimeout(() => {
+                cardElement.classList.remove('playing-audio');
+            }, 1500);
+        }
+
+        // Initialisation de l'imagier
+        function initBoard() {
+            const grid = document.getElementById('vocabulary-grid');
+            grid.innerHTML = '';
+
+            vocabulary.forEach(item => {
+                // Conteneur de la carte qui prend tout l'espace de la cellule de grille
+                const card = document.createElement('div');
+                card.className = "img-card glass-card p-2 sm:p-4 rounded-2xl flex items-center justify-center h-full w-full bg-white/5 hover:bg-white/10 relative overflow-hidden";
+                
+                // Image uniquement (Prend le maximum de place sans se déformer ni déborder)
+                const img = document.createElement('img');
+                img.src = item.img;
+                img.alt = item.word;
+                img.className = "w-full h-full object-contain pointer-events-none drop-shadow-2xl";
+                
+                // Gérer le cas où l'image ne charge pas (si le fichier n'est pas trouvé)
+                img.onerror = () => {
+                    img.outerHTML = `<div class="w-full h-full flex items-center justify-center text-center text-red-400 border border-red-500 border-dashed rounded-xl p-1 text-xs sm:text-sm">Image manquante:<br>${item.img}</div>`;
+                };
+
+                // Action au clic
+                card.onclick = () => playAudio(item.word, card);
+
+                // Assemblage : on n'ajoute QUE l'image à la carte (plus de texte)
+                card.appendChild(img);
+                grid.appendChild(card);
+            });
+        }
+
+        // Lancement au chargement de la page
+        window.onload = () => {
+            createBackground();
+            initBoard();
+            
+            // Chargement des voix de synthèse pour Google Chrome
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = () => {};
+            }
+        };
+    </script>
+</body>
+</html>

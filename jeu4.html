@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anglais CE1 - Halloween Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            height: 100vh;
+            width: 100vw;
+        }
+        .img-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .correct {
+            border-color: #22c55e !important;
+            background-color: rgba(34, 197, 94, 0.3) !important;
+            transform: scale(1.05);
+        }
+        .wrong {
+            border-color: #ef4444 !important;
+            background-color: rgba(239, 68, 68, 0.3) !important;
+            opacity: 0.6;
+        }
+        .hidden { display: none; }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #bg-decor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .floating-item {
+            position: absolute;
+            opacity: 0.15;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+            100% { transform: translateY(0) rotate(360deg); }
+        }
+
+        .pulse-audio {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(249, 115, 22, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        }
+
+        .result-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            height: 100%;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .result-column::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex flex-col text-white">
+
+    <div id="bg-decor"></div>
+
+    <!-- ACCUEIL -->
+    <div id="home-screen" class="flex flex-col items-center justify-center h-full p-6 text-center">
+        <div class="glass-card p-10 rounded-3xl shadow-2xl max-w-md w-full border-2 border-orange-500">
+            <h1 class="text-5xl font-black mb-4 text-orange-500 uppercase">Halloween</h1>
+            <p class="text-xl mb-8 opacity-90 font-medium">Auto-évaluation Anglais</p>
+            <button onclick="startGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-6 px-8 rounded-2xl text-2xl shadow-lg transform active:scale-95 transition-all">
+                C'EST PARTI ! 🎃
+            </button>
+        </div>
+    </div>
+
+    <!-- JEU -->
+    <div id="game-screen" class="hidden h-full p-4 flex flex-col items-center max-w-4xl mx-auto w-full">
+        <div class="w-full flex justify-between items-center mb-4 glass-card px-6 py-4 rounded-2xl">
+            <div class="text-xl font-bold">Question <span id="current-count">1</span>/16</div>
+            <div class="text-xl font-bold text-orange-400">Écoute et choisis</div>
+        </div>
+
+        <div class="flex-grow flex flex-col items-center justify-center w-full">
+            <button onclick="playAudio()" class="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center shadow-2xl pulse-audio mb-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            </button>
+
+            <div id="options-grid" class="grid grid-cols-2 gap-4 w-full max-w-lg">
+                <!-- JS -->
+            </div>
+        </div>
+
+        <div class="h-20 flex items-center">
+            <button id="next-btn" onclick="nextQuestion()" class="hidden bg-white text-black font-bold py-4 px-12 rounded-2xl text-xl shadow-xl active:scale-95 transition-all">
+                SUIVANT ➔
+            </button>
+        </div>
+    </div>
+
+    <!-- BILAN FINAL -->
+    <div id="result-screen" class="hidden h-full flex flex-col p-4 w-full max-w-5xl mx-auto">
+        <div class="glass-card p-4 rounded-2xl mb-4 text-center">
+            <h2 class="text-2xl font-black uppercase text-orange-500">Bilan de tes connaissances</h2>
+        </div>
+        
+        <div class="flex-grow grid grid-cols-3 gap-2 overflow-hidden mb-4">
+            <!-- Colonne 0 : Pas encore -->
+            <div class="glass-card rounded-2xl flex flex-col h-full bg-red-900/20 border-red-500/30 overflow-hidden">
+                <div class="bg-red-600 p-2 text-center text-xs font-bold uppercase">Je ne connais pas encore</div>
+                <div id="col-0" class="result-column p-2 flex-grow"></div>
+            </div>
+            <!-- Colonne 1 : Commence -->
+            <div class="glass-card rounded-2xl flex flex-col h-full bg-orange-900/20 border-orange-500/30 overflow-hidden">
+                <div class="bg-orange-500 p-2 text-center text-xs font-bold uppercase">Je commence à connaître</div>
+                <div id="col-1" class="result-column p-2 flex-grow"></div>
+            </div>
+            <!-- Colonne 2 : Connais -->
+            <div class="glass-card rounded-2xl flex flex-col h-full bg-green-900/20 border-green-500/30 overflow-hidden">
+                <div class="bg-green-600 p-2 text-center text-xs font-bold uppercase">Je connais</div>
+                <div id="col-2" class="result-column p-2 flex-grow"></div>
+            </div>
+        </div>
+
+        <button onclick="location.reload()" class="bg-white text-black font-bold py-4 px-8 rounded-2xl text-xl shadow-lg active:scale-95 transition-all w-full shrink-0">
+            REJOUER 🔄
+        </button>
+    </div>
+
+    <script>
+        const vocabulary = [
+            { id: 'ghost', word: 'Uh ghost', img: 'ghost.png' },
+            { id: 'monster', word: 'Uh monster', img: 'monster.png' },
+            { id: 'mummy', word: 'Uh mummy', img: 'mummy.png' },
+            { id: 'pirate', word: 'Uh pirate', img: 'pirate.png' },
+            { id: 'pumpkin', word: 'Uh pumpkin', img: 'pumpkin.png' },
+            { id: 'skeleton', word: 'Uh skeleton', img: 'squeleton.png' },
+            { id: 'vampire', word: 'Uh vampire', img: 'vampire.png' },
+            { id: 'witch', word: 'Uh witch', img: 'witch.png' }
+        ];
+
+        let currentIndex = 0;
+        let shuffledQuestions = [];
+        let stats = {}; // Suivi des réussites par ID
+        let canClick = true;
+        const synth = window.speechSynthesis;
+
+        function createBackground() {
+            const decorEl = document.getElementById('bg-decor');
+            const icons = ['🎃', '👻', '🦇', '🕷️', '🕸️', '🧟'];
+            for (let i = 0; i < 25; i++) {
+                const div = document.createElement('div');
+                div.className = 'floating-item text-4xl';
+                div.textContent = icons[Math.floor(Math.random() * icons.length)];
+                div.style.left = Math.random() * 100 + 'vw';
+                div.style.top = Math.random() * 100 + 'vh';
+                div.style.animationDuration = (10 + Math.random() * 10) + 's';
+                decorEl.appendChild(div);
+            }
+        }
+
+        function playSpecificAudio(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.8;
+            synth.speak(utterance);
+        }
+
+        function playAudio() {
+            playSpecificAudio(shuffledQuestions[currentIndex].word);
+        }
+
+        function startGame() {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            // Initialiser les stats
+            vocabulary.forEach(v => stats[v.id] = 0);
+            
+            // Créer 16 questions (chaque mot 2 fois)
+            shuffledQuestions = [...vocabulary, ...vocabulary].sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            canClick = true;
+            const current = shuffledQuestions[currentIndex];
+            document.getElementById('current-count').textContent = currentIndex + 1;
+            document.getElementById('next-btn').classList.add('hidden');
+
+            // Mélanger options
+            let options = [current];
+            const others = vocabulary.filter(v => v.id !== current.id).sort(() => Math.random() - 0.5);
+            options.push(others[0], others[1], others[2]);
+            options.sort(() => Math.random() - 0.5);
+
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const card = document.createElement('div');
+                card.className = "img-card glass-card p-3 rounded-2xl border-4 border-transparent aspect-square flex items-center justify-center bg-white/5";
+                const img = document.createElement('img');
+                img.src = opt.img;
+                img.className = "max-w-full max-h-full object-contain pointer-events-none";
+                card.onclick = () => checkAnswer(card, opt.id);
+                card.appendChild(img);
+                grid.appendChild(card);
+            });
+
+            setTimeout(playAudio, 500);
+        }
+
+        function checkAnswer(el, chosenId) {
+            if (!canClick) return;
+            canClick = false;
+
+            const correctId = shuffledQuestions[currentIndex].id;
+            if (chosenId === correctId) {
+                el.classList.add('correct');
+                stats[correctId]++;
+            } else {
+                el.classList.add('wrong');
+                document.querySelectorAll('.img-card').forEach(card => {
+                    const img = card.querySelector('img');
+                    if (img.src.includes(shuffledQuestions[currentIndex].img)) card.classList.add('correct');
+                });
+            }
+
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < shuffledQuestions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            vocabulary.forEach(v => {
+                const count = stats[v.id];
+                const colId = `col-${count}`;
+                const column = document.getElementById(colId);
+                
+                const item = document.createElement('div');
+                item.className = "glass-card p-2 rounded-xl border border-white/20 w-24 h-24 flex items-center justify-center cursor-pointer hover:bg-white/10 shrink-0";
+                item.onclick = () => playSpecificAudio(v.word);
+                
+                const img = document.createElement('img');
+                img.src = v.img;
+                img.className = "max-w-full max-h-full object-contain";
+                
+                item.appendChild(img);
+                column.appendChild(item);
+            });
+        }
+
+        window.onload = createBackground;
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeux d'Anglais - Halloween (Cycle 2)</title>
+    <!-- Utilisation de Tailwind CSS pour un style rapide et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Quelques styles personnalisés pour une ambiance Halloween */
+        body {
+            background-color: #1a1a2e; /* Fond sombre */
+            color: #e0e0e0; /* Texte clair */
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; /* Police ludique */
+            /* Ajout d'un léger motif de fond de toile d'araignée très subtil (optionnel, simulé ici par une couleur unie) */
+            background-image: radial-gradient(#2a2a4e 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        h1, h2 {
+            color: #ff9900; /* Orange Halloween */
+            text-shadow: 2px 2px 4px #000000;
+        }
+
+        .game-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-color: #2a2a4e;
+            border: 2px solid #ff9900;
+            border-radius: 15px;
+            overflow: hidden; /* Pour que l'image respecte les bords arrondis */
+        }
+
+        .game-card:hover {
+            transform: scale(1.05); /* Effet de zoom au survol */
+            box-shadow: 0 10px 20px rgba(255, 153, 0, 0.4); /* Ombre orange */
+            cursor: pointer;
+        }
+
+        .game-image-container {
+            width: 100%;
+            height: 200px; /* Hauteur fixe pour l'image */
+            background-color: #000; /* Fond noir si l'image ne couvre pas tout */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover; /* Remplit le conteneur en gardant les proportions */
+        }
+
+        .game-title {
+            padding: 15px;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #fff;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-8">
+
+    <header class="text-center mb-12">
+        <h1 class="text-5xl font-extrabold mb-4 animate-bounce">🎃 Happy Halloween! 🦇</h1>
+        <h2 class="text-3xl font-bold mb-2">Anglais</h2>
+        <p class="text-xl text-gray-300 max-w-2xl mx-auto">
+            Bienvenue ! Choisis un jeu ci-dessous pour réviser ton anglais avec les monstres, les sorcières et les citrouilles.
+        </p>
+    </header>
+
+    <main class="w-full max-w-6xl">
+        <!-- Grille responsive : 1 colonne sur mobile, 2 sur tablette, 4 sur grand écran -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+
+            <!-- Jeu 1 -->
+            <a href="jeu1.html" class="game-card block no-underline">
+                <div class="game-image-container relative">
+                    <!-- Image du jeu 1. Utilisation d'un placeholder si l'image n'est pas encore là -->
+                    <img src="jeu1.png" alt="Miniature du Jeu 1" class="game-image" onerror="this.src='https://placehold.co/400x300/ff9900/000000?text=Jeu+1\n(Missing+jeu1.png)';">
+                </div>
+                <div class="game-title">Je révise</div>
+            </a>
+
+            <!-- Jeu 2 -->
+            <a href="jeu2.html" class="game-card block no-underline">
+                <div class="game-image-container relative">
+                    <!-- Image du jeu 2 -->
+                    <img src="jeu2.png" alt="Miniature du Jeu 2" class="game-image" onerror="this.src='https://placehold.co/400x300/8a2be2/ffffff?text=Jeu+2\n(Missing+jeu2.png)';">
+                </div>
+                <div class="game-title">Halloween vocabulary</div>
+            </a>
+
+            <!-- Jeu 3 -->
+            <a href="jeu3.html" class="game-card block no-underline">
+                <div class="game-image-container relative">
+                    <!-- Image du jeu 3 -->
+                    <img src="jeu3.png" alt="Miniature du Jeu 3" class="game-image" onerror="this.src='https://placehold.co/400x300/00cc00/000000?text=Jeu+3\n(Missing+jeu3.png)';">
+                </div>
+                <div class="game-title">Halloween boat</div>
+            </a>
+
+            <!-- Jeu 4 -->
+            <a href="jeu4.html" class="game-card block no-underline">
+                <div class="game-image-container relative">
+                    <!-- Image du jeu 4 -->
+                    <img src="jeu4.png" alt="Miniature du Jeu 4" class="game-image" onerror="this.src='https://placehold.co/400x300/cc0000/ffffff?text=Jeu+4\n(Missing+jeu4.png)';">
+                </div>
+                <div class="game-title">Auto-évaluation</div>
+            </a>
+
+            <!-- Jeu 5 -->
+            <a href="jeu5.html" class="game-card block no-underline">
+                <div class="game-image-container relative">
+                    <!-- Image du jeu 5 -->
+                    <img src="jeu5.png" alt="Miniature du Jeu 5" class="game-image" onerror="this.src='https://placehold.co/400x300/cc0000/ffffff?text=Jeu+5\n(Missing+jeu5.png)';">
+                </div>
+                <div class="game-title">Défi Oral d'Halloween</div>
+            </a>
+        </div>
+    </main>
+
+    <footer class="mt-16 mb-8 text-center w-full">
+        <p class="text-gray-500 text-sm mb-4">&copy; Anglais pour le Cycle 2</p>
+        
+        <!-- Liens vers la forge et documentation -->
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-6 text-sm text-[#ff9900]/80">
+            <a href="https://forge.apps.education.fr/pellegrinfrederic/cycle-2-anglais-halloween/-/tree/main" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="hover:text-[#ff9900] hover:underline transition-colors flex items-center gap-2">
+                📁 Voir le dépôt (Code)
+            </a>
+            
+            <span class="hidden sm:inline text-gray-600">|</span>
+            
+            <a href="https://forge.apps.education.fr/pellegrinfrederic/cycle-2-anglais-halloween/-/work_items" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="hover:text-[#ff9900] hover:underline transition-colors flex items-center gap-2">
+                🐛 Signaler un bug (Tickets)
+            </a>
+
+            <span class="hidden sm:inline text-gray-600">|</span>
+            
+            <a href="README.md" 
+               target="_blank" 
+               class="hover:text-[#ff9900] hover:underline transition-colors flex items-center gap-2">
+                📄 Lire le README
+            </a>
+        </div>
+    </footer>
+
+</body>
+</html>

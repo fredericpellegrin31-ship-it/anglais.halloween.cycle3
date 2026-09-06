@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Halloween Challenge - Oral CE1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Fredoka', sans-serif;
+            /* Changement du fond pour une ambiance Halloween (violet foncé vers noir) */
+            background: linear-gradient(135deg, #2e1065 0%, #020617 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .voice-active {
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6); } /* Orange pulse */
+            70% { box-shadow: 0 0 0 20px rgba(249, 115, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        }
+
+        .vocab-img {
+            max-height: 200px;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+        }
+
+        .vocab-img:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- Écran de démarrage -->
+    <div id="start-screen" class="glass-card p-10 text-center max-w-md w-full border-4 border-orange-500/50">
+        <div class="text-8xl mb-6 animate-bounce">🎃</div>
+        <h1 class="text-4xl font-bold text-orange-600 mb-2 italic">The Halloween Challenge</h1>
+        <p class="text-gray-600 mb-8 text-xl font-medium">Es-tu prêt à nommer les monstres en anglais ?</p>
+        <button onclick="startGame()" class="bg-gradient-to-r from-orange-500 to-red-500 hover:scale-105 transform text-white font-bold py-4 px-10 rounded-2xl w-full text-2xl shadow-xl transition-all">
+            START! 🚀
+        </button>
+    </div>
+
+    <!-- Interface du jeu -->
+    <div id="game-screen" class="hidden w-full max-w-md">
+        <div class="glass-card p-8 text-center relative border-4 border-purple-500/50">
+            
+            <div class="flex justify-between items-center mb-6">
+                <div class="bg-orange-100 text-orange-700 px-4 py-2 rounded-full font-bold shadow-sm flex items-center gap-2">
+                    <span>Score:</span> <span id="score">0</span> 🍬
+                </div>
+                <div class="bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold shadow-sm">
+                    <span id="question-count">1</span> / 8
+                </div>
+            </div>
+
+            <!-- Zone image -->
+            <div id="vocab-display" class="bg-white rounded-3xl p-6 mb-6 shadow-inner border-2 border-gray-100 min-h-[250px] flex flex-col items-center justify-center relative overflow-hidden">
+                <img id="vocab-target" src="" alt="Halloween Item" class="vocab-img object-contain mb-4 z-10">
+                <div id="status-label" class="text-2xl font-bold text-gray-800 z-10">What is this?</div>
+                <!-- Décoration d'arrière-plan -->
+                <div class="absolute inset-0 opacity-5 text-9xl flex items-center justify-center pointer-events-none">🕸️</div>
+            </div>
+
+            <!-- Feedback Bulle -->
+            <div id="heard-bubble" class="hidden mb-6 p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-lg italic text-gray-500">
+                "..."
+            </div>
+
+            <!-- Boutons de contrôle -->
+            <div id="controls-normal" class="flex flex-col items-center gap-4">
+                <button id="mic-btn" onclick="startListening()" class="bg-orange-500 hover:bg-orange-600 text-white p-8 rounded-full shadow-lg transition-all transform active:scale-95 border-4 border-orange-300">
+                    <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 005.93 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-2.93v-2.07z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <p class="text-sm font-semibold text-gray-400 uppercase tracking-widest">Appuie et parle</p>
+            </div>
+
+            <!-- Boutons d'erreur (masqués par défaut) -->
+            <div id="controls-error" class="hidden flex flex-col gap-3">
+                <button onclick="retryListening()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-xl text-lg shadow-md transition-all">
+                    Retry! 🔁
+                </button>
+                <button onclick="revealAnswer()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl text-lg shadow-md transition-all">
+                    Listen to answer 🔊
+                </button>
+            </div>
+
+            <!-- Bouton Suivant (masqué par défaut) -->
+            <button id="next-btn" onclick="nextQuestion()" class="hidden bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-2xl w-full text-xl shadow-lg mt-4 animate-bounce border-b-4 border-green-700">
+                Next ➡️
+            </button>
+        </div>
+    </div>
+
+    <!-- Écran de fin -->
+    <div id="end-screen" class="hidden glass-card p-10 text-center max-w-md w-full border-4 border-orange-500/50">
+        <div id="trophy" class="text-8xl mb-4">🏆</div>
+        <h2 class="text-4xl font-bold mb-2 text-gray-800" id="end-title">Finish!</h2>
+        <p id="final-result" class="text-2xl font-bold text-orange-600 mb-6"></p>
+        <div id="rank-message" class="mb-8 p-5 bg-orange-50 rounded-2xl text-orange-800 font-semibold text-lg border border-orange-200"></div>
+        <button onclick="location.reload()" class="bg-purple-600 text-white font-bold py-4 px-10 rounded-2xl w-full text-2xl shadow-lg hover:bg-purple-700 transition-all border-b-4 border-purple-800">
+            Play Again! 🔄
+        </button>
+    </div>
+
+    <script>
+        // Liste du vocabulaire avec correction phonétique pour la synthèse vocale ("Uh")
+        const halloweenVocab = [
+            { word: "ghost", display: "A ghost", speech: "Uh ghost", file: "ghost.png" },
+            { word: "monster", display: "A monster", speech: "Uh monster", file: "monster.png" },
+            { word: "mummy", display: "A mummy", speech: "Uh mummy", file: "mummy.png" },
+            { word: "pirate", display: "A pirate", speech: "Uh pirate", file: "pirate.png" },
+            { word: "pumpkin", display: "A pumpkin", speech: "Uh pumpkin", file: "pumpkin.png" },
+            { word: "skeleton", display: "A skeleton", speech: "Uh skeleton", file: "squeleton.png" }, // "squeleton" pour matcher le nom du fichier
+            { word: "vampire", display: "A vampire", speech: "Uh vampire", file: "vampire.png" },
+            { word: "witch", display: "A witch", speech: "Uh witch", file: "witch.png" }
+        ];
+
+        let gameItems = [];
+        let score = 0;
+        let currentIndex = 0;
+        let targetItem = null;
+        let isListening = false;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript.toLowerCase().trim();
+                handleVoiceInput(speechResult);
+            };
+
+            recognition.onspeechend = () => stopMicUI();
+            recognition.onerror = () => {
+                stopMicUI();
+                handleVoiceInput("");
+            };
+        } else {
+            alert("Désolé, votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Chrome ou Edge.");
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'en-US';
+            msg.rate = 0.8; // Voix légèrement ralentie pour les CE1
+            window.speechSynthesis.speak(msg);
+        }
+
+        function startGame() {
+            // Mélanger les images au début
+            gameItems = [...halloweenVocab].sort(() => Math.random() - 0.5);
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentIndex >= gameItems.length) {
+                endGame();
+                return;
+            }
+
+            targetItem = gameItems[currentIndex];
+            
+            document.getElementById('question-count').innerText = (currentIndex + 1);
+            document.getElementById('vocab-target').src = targetItem.file;
+            document.getElementById('status-label').innerText = "What is this?";
+            document.getElementById('status-label').className = "text-2xl font-bold text-gray-800 z-10";
+            document.getElementById('heard-bubble').classList.add('hidden');
+            
+            document.getElementById('controls-normal').classList.remove('hidden');
+            document.getElementById('controls-error').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('mic-btn').disabled = false;
+        }
+
+        function startListening() {
+            if (!recognition || isListening) return;
+            try {
+                recognition.start();
+                isListening = true;
+                document.getElementById('mic-btn').classList.add('voice-active');
+                document.getElementById('status-label').innerText = "I'm listening...";
+            } catch (e) { console.error(e); }
+        }
+
+        function stopMicUI() {
+            isListening = false;
+            document.getElementById('mic-btn').classList.remove('voice-active');
+        }
+
+        function handleVoiceInput(result) {
+            const statusLabel = document.getElementById('status-label');
+            const heardBubble = document.getElementById('heard-bubble');
+            
+            heardBubble.innerText = result ? `I heard: "${result}"` : "I didn't hear anything...";
+            heardBubble.classList.remove('hidden');
+
+            // Tolérance pour le mot "skeleton" si la reconnaissance comprend "squeleton" (mot français transparent)
+            const isCorrect = result.toLowerCase().includes(targetItem.word) || 
+                              (targetItem.word === "skeleton" && result.toLowerCase().includes("squeleton"));
+
+            if (isCorrect) {
+                score++;
+                document.getElementById('score').innerText = score;
+                statusLabel.innerText = "Yes! Well done! ✅";
+                statusLabel.classList.add('text-green-600');
+                
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#f97316', '#a855f7', '#ffffff'] // Couleurs Halloween
+                });
+
+                speak(`Yes! ${targetItem.speech}`);
+                
+                document.getElementById('controls-normal').classList.add('hidden');
+                document.getElementById('next-btn').classList.remove('hidden');
+            } else {
+                statusLabel.innerText = "Not quite... ❌";
+                statusLabel.classList.add('text-red-500');
+                
+                document.getElementById('controls-normal').classList.add('hidden');
+                document.getElementById('controls-error').classList.remove('hidden');
+            }
+        }
+
+        function retryListening() {
+            document.getElementById('controls-error').classList.add('hidden');
+            document.getElementById('controls-normal').classList.remove('hidden');
+            document.getElementById('status-label').innerText = "Try again!";
+            document.getElementById('status-label').className = "text-2xl font-bold text-gray-800 z-10";
+            document.getElementById('heard-bubble').classList.add('hidden');
+        }
+
+        function revealAnswer() {
+            speak(`The answer is: ${targetItem.speech}`);
+            document.getElementById('status-label').innerText = `It's ${targetItem.display}`;
+            document.getElementById('status-label').className = "text-2xl font-bold text-purple-600 z-10";
+            
+            document.getElementById('controls-error').classList.add('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            loadQuestion();
+        }
+
+        function endGame() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-result').innerText = `Tu as récolté ${score} bonbons ! 🍬`;
+            
+            let rank = "";
+            let trophy = "👻";
+            let title = "Bravo !";
+
+            if (score === 8) { 
+                title = "Perfect! 🏆";
+                rank = "Tu es un véritable expert d'Halloween !"; 
+                trophy = "🦇"; 
+            } else if (score >= 4) { 
+                title = "Very Good! 🌟";
+                rank = "Tu connais bien les monstres d'Halloween !"; 
+                trophy = "🎃"; 
+            } else { 
+                title = "Keep going! 💪";
+                rank = "Continue de t'entraîner pour faire peur à tout le monde !"; 
+                trophy = "🧟"; 
+            }
+            
+            document.getElementById('end-title').innerText = title;
+            document.getElementById('rank-message').innerText = rank;
+            document.getElementById('trophy').innerText = trophy;
+
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.5 },
+                colors: ['#f97316', '#a855f7', '#000000', '#ffffff']
+            });
+        }
+    </script>
+</body>
+</html>
