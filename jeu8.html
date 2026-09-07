@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mots Croisés - VocabPlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        #crossword-grid { --cell: 2.35rem; }
+
+        .cw-cell { position: relative; }
+
+        .cw-blank { width: var(--cell); height: var(--cell); }
+
+        .cw-input {
+            width: var(--cell);
+            height: var(--cell);
+            text-align: center;
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: calc(var(--cell) * 0.46);
+            border-radius: calc(var(--cell) * 0.22);
+            border-width: 2px;
+            background-color: #ffffff;
+            border-color: #cbd5e1;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.15s ease;
+            caret-color: #012169;
+            padding: 0;
+        }
+        .cw-input:focus { border-color: #012169; box-shadow: 0 0 0 3px rgba(1,33,105,0.15); }
+
+        .cw-input.correct-cell {
+            background-color: #22c55e !important;
+            color: #ffffff !important;
+            border-color: #15803d !important;
+        }
+        .cw-input.wrong-cell {
+            background-color: #ef4444 !important;
+            color: #ffffff !important;
+            border-color: #b91c1c !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        .clue-badge {
+            position: absolute;
+            top: calc(var(--cell) * -0.5);
+            left: calc(var(--cell) * -0.5);
+            width: calc(var(--cell) * 1.2);
+            height: calc(var(--cell) * 1.2);
+            border-radius: 9999px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+            object-fit: cover;
+            z-index: 20;
+            cursor: pointer;
+            background: #fff;
+        }
+        .clue-badge.clue-badge-2 { left: auto; right: calc(var(--cell) * -0.5); }
+        .clue-badge:active { transform: scale(0.9); }
+
+        #message-banner { transition: opacity 0.3s ease; }
+    </style>
+    
+    <style id="print-styles">
+        /* On masque complètement la zone d'impression sur l'écran normal */
+        #print-area { display: none; }
+
+        @media print {
+            body > *:not(#print-area) { display: none !important; }
+            body { background: white; margin: 0; padding: 0; }
+            #print-area { display: flex !important; flex-direction: column; width: 100%; height: 100vh; justify-content: space-between; margin: 0; padding: 0; }
+            .print-exercise { page-break-inside: avoid; height: 48vh; border: 2px solid #cbd5e1; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; box-sizing: border-box; background: white; }
+            .print-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 1rem; color: #333; font-weight: 600;}
+            .print-title { text-align: center; font-size: 1.4rem; font-weight: 900; margin-bottom: 1rem; color: #012169; text-transform: uppercase; letter-spacing: 1px;}
+            .print-grid-container { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+            #print-area #crossword-grid { --cell: 1.7rem !important; gap: 3px !important; padding: 0 !important; }
+            #print-area .cw-input { background: white !important; -webkit-text-fill-color: transparent !important; color: transparent !important; border: 2px solid #64748b !important; box-shadow: none !important;}
+            #print-area .clue-badge { border: 2px solid #000; }
+            @page { size: A4 portrait; margin: 10mm; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- En-tête -->
+    <header class="bg-white shadow-md p-3 flex justify-between items-center z-50 border-t-4 border-[#012169] shrink-0">
+        <h1 class="text-lg md:text-2xl font-black text-slate-700 tracking-wider">🇬🇧 VOCAB<span class="text-[#C8102E]">PLAY</span></h1>
+        <button onclick="retourMenuPrincipal()" class="px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold transition-colors bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm md:text-base flex items-center gap-2">
+            🏠 Menu Principal
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto p-3 md:p-4 items-center relative">
+
+        <div id="header-text" class="text-center mb-1 shrink-0">
+            <h2 id="theme-title" class="text-xl md:text-2xl font-black text-[#012169]">Chargement...</h2>
+            <p class="text-slate-500 text-xs md:text-sm">Clique sur une image pour l'écouter, puis écris le mot dans la grille !</p>
+        </div>
+
+        <!-- ÉCRAN DE JEU -->
+        <div id="game-screen" class="flex-1 flex flex-col items-center justify-between w-full min-h-0 gap-2 py-1 relative">
+            
+            <div class="w-full flex justify-end px-2 shrink-0 z-30">
+                <button onclick="generatePDF()" class="bg-[#012169] text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold shadow hover:bg-blue-800 transition-colors flex items-center gap-2 text-xs md:text-sm">
+                    🖨️ Fiche Exercice PDF
+                </button>
+            </div>
+
+            <!-- Bandeau message -->
+            <div id="message-banner" class="w-full max-w-md text-center font-bold text-[#012169] bg-blue-50 border-2 border-blue-200 rounded-xl py-1.5 px-4 opacity-0 shrink-0 text-sm"></div>
+
+            <!-- Grille de mots croisés -->
+            <div id="grid-scroll" class="flex-1 min-h-0 w-full overflow-auto flex items-center justify-center">
+                <div id="crossword-grid" class="inline-grid gap-[3px] p-8"></div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="flex gap-3 w-full max-w-md shrink-0">
+                <button onclick="effacerTout()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl shadow transition-colors text-sm md:text-base">
+                    🧹 Effacer tout
+                </button>
+                <button onclick="validerGrille()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-2.5 rounded-xl shadow transition-colors text-sm md:text-base">
+                    ✓ Valider
+                </button>
+            </div>
+
+        </div>
+
+        <!-- ÉCRAN DE VICTOIRE -->
+        <div id="win-screen" class="flex-1 flex flex-col items-center justify-center hidden my-auto text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <h3 class="text-3xl font-black text-green-500 mb-2">Well done!</h3>
+            <p class="text-slate-600 font-bold mb-6">Tu as complété toute la grille de mots croisés !</p>
+            <div class="flex gap-4">
+                <button onclick="location.reload()" class="px-6 py-3 rounded-xl font-bold bg-[#012169] text-white shadow-md hover:bg-blue-800 transition-colors">Rejouer</button>
+                <button onclick="retourMenuPrincipal()" class="px-6 py-3 rounded-xl font-bold bg-slate-200 text-slate-700 shadow-md hover:bg-slate-300 transition-colors">Menu Principal</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function generatePDF() {
+            // Nettoyer si une ancienne zone d'impression existe
+            let printArea = document.getElementById('print-area');
+            if (printArea) printArea.remove();
+
+            printArea = document.createElement('div');
+            printArea.id = 'print-area';
+            document.body.appendChild(printArea);
+
+            const clone = document.getElementById('crossword-grid').cloneNode(true);
+            clone.querySelectorAll('input').forEach(inp => {
+                inp.value = '';
+                inp.removeAttribute('placeholder');
+                inp.classList.remove('correct-cell', 'wrong-cell');
+            });
+
+            const buildExercise = () => {
+                return `
+                    <div class="print-exercise">
+                        <div class="print-header">
+                            <span>Nom : _________________________</span>
+                            <span>Prénom : _________________________</span>
+                            <span>Date : ___________________</span>
+                        </div>
+                        <div class="print-title">Mots Croisés - ${currentTheme ? currentTheme.name : 'Exercice'}</div>
+                        <div class="print-grid-container">
+                            ${clone.outerHTML}
+                        </div>
+                    </div>
+                `;
+            };
+
+            printArea.innerHTML = buildExercise() + buildExercise();
+            
+            setTimeout(() => {
+                window.print();
+            }, 100);
+        }
+
+        // On écoute la fin de l'impression pour nettoyer proprement le DOM
+        window.addEventListener('afterprint', () => {
+            const printArea = document.getElementById('print-area');
+            if (printArea) printArea.remove();
+        });
+        
+        // Liste des mots d'anglais intégrée directement dans le code.
+        // Les images sont recherchées à côté de ce fichier HTML (même nom que le mot + .png)
+        const VOCAB_WORDS = [
+            { id: 1, en: "princess", image: "princess.png", speech: "princess" },
+            { id: 2, en: "clown", image: "clown.png", speech: "clown" },
+            { id: 3, en: "astronaut", image: "astronaut.png", speech: "astronaut" },
+            { id: 4, en: "bunny", image: "bunny.png", speech: "bunny" },
+            { id: 5, en: "witch", image: "witch.png", speech: "witch" },
+            { id: 6, en: "pumpkin", image: "pumpkin.png", speech: "pumpkin" },
+            { id: 7, en: "skeleton", image: "skeleton.png", speech: "skeleton" },
+            { id: 8, en: "pirate", image: "pirate.png", speech: "pirate" }
+        ];
+
+        let currentTheme = null;
+        let gridData = null; 
+        let activeDir = 'H';
+        let lastClickedCellId = null;
+
+        function init() {
+            currentTheme = { name: "Costumes & Fête", words: VOCAB_WORDS };
+
+            document.getElementById('theme-title').innerText = currentTheme.name;
+
+            const words = prepareWords(currentTheme.words);
+            gridData = buildCrossword(words);
+
+            requestAnimationFrame(() => {
+                applyCellSize(gridData);
+                renderGrid(gridData);
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            if (gridData) applyCellSize(gridData);
+        });
+
+        function retourMenuPrincipal() {
+            window.location.href = `index.html`;
+        }
+
+        function prepareWords(rawWords) {
+            const seen = new Set();
+            const words = [];
+            rawWords.forEach(w => {
+                const letters = (w.en || '').toUpperCase().replace(/[^A-Z]/g, '');
+                if (letters.length < 2) return;
+                if (seen.has(letters)) return;
+                seen.add(letters);
+                words.push({ ref: w, letters });
+            });
+            shuffleArray(words);
+            words.sort((a, b) => b.letters.length - a.letters.length);
+            return words;
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function buildCrossword(words) {
+            const cellMap = {}; 
+            const placed = [];  
+
+            const key = (r, c) => r + ',' + c;
+
+            function canPlace(letters, row, col, dir) {
+                for (let i = 0; i < letters.length; i++) {
+                    const r = dir === 'H' ? row : row + i;
+                    const c = dir === 'H' ? col + i : col;
+                    const k = key(r, c);
+                    const existing = cellMap[k];
+
+                    if (existing !== undefined) {
+                        if (existing !== letters[i]) return false;
+                    } else {
+                        const n1 = dir === 'H' ? key(r - 1, c) : key(r, c - 1);
+                        const n2 = dir === 'H' ? key(r + 1, c) : key(r, c + 1);
+                        if (cellMap[n1] !== undefined) return false;
+                        if (cellMap[n2] !== undefined) return false;
+                    }
+                }
+                const beforeR = dir === 'H' ? row : row - 1;
+                const beforeC = dir === 'H' ? col - 1 : col;
+                const afterR = dir === 'H' ? row : row + letters.length;
+                const afterC = dir === 'H' ? col + letters.length : col;
+                if (cellMap[key(beforeR, beforeC)] !== undefined) return false;
+                if (cellMap[key(afterR, afterC)] !== undefined) return false;
+                return true;
+            }
+
+            function place(letters, row, col, dir, ref) {
+                for (let i = 0; i < letters.length; i++) {
+                    const r = dir === 'H' ? row : row + i;
+                    const c = dir === 'H' ? col + i : col;
+                    cellMap[key(r, c)] = letters[i];
+                }
+                placed.push({ letters, row, col, dir, ref });
+            }
+
+            place(words[0].letters, 0, 0, 'H', words[0].ref);
+
+            for (let idx = 1; idx < words.length; idx++) {
+                const w = words[idx];
+                let candidates = [];
+                let bestScore = -1;
+
+                for (const p of placed) {
+                    for (let i = 0; i < w.letters.length; i++) {
+                        for (let j = 0; j < p.letters.length; j++) {
+                            if (w.letters[i] !== p.letters[j]) continue;
+
+                            const newDir = p.dir === 'H' ? 'V' : 'H';
+                            let row, col;
+                            if (p.dir === 'H') {
+                                col = p.col + j;
+                                row = p.row - i;
+                            } else {
+                                row = p.row + j;
+                                col = p.col - i;
+                            }
+
+                            if (canPlace(w.letters, row, col, newDir)) {
+                                let score = 0;
+                                for (let k = 0; k < w.letters.length; k++) {
+                                    const r = newDir === 'H' ? row : row + k;
+                                    const c = newDir === 'H' ? col + k : col;
+                                    if (cellMap[key(r, c)] !== undefined) score++;
+                                }
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    candidates = [{ row, col, dir: newDir }];
+                                } else if (score === bestScore) {
+                                    candidates.push({ row, col, dir: newDir });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (candidates.length > 0) {
+                    const best = candidates[Math.floor(Math.random() * candidates.length)];
+                    place(w.letters, best.row, best.col, best.dir, w.ref);
+                } else {
+                    let maxRow = 0;
+                    placed.forEach(p => {
+                        const rows = p.dir === 'H' ? [p.row] : Array.from({ length: p.letters.length }, (_, k) => p.row + k);
+                        rows.forEach(r => { if (r > maxRow) maxRow = r; });
+                    });
+                    place(w.letters, maxRow + 2, 0, 'H', w.ref);
+                }
+            }
+
+            let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+            placed.forEach(p => {
+                for (let i = 0; i < p.letters.length; i++) {
+                    const r = p.dir === 'H' ? p.row : p.row + i;
+                    const c = p.dir === 'H' ? p.col + i : p.col;
+                    if (r < minR) minR = r;
+                    if (r > maxR) maxR = r;
+                    if (c < minC) minC = c;
+                    if (c > maxC) maxC = c;
+                }
+            });
+
+            const offsetR = -minR;
+            const offsetC = -minC;
+            const rows = maxR - minR + 1;
+            const cols = maxC - minC + 1;
+
+            const grid = Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
+
+            placed.forEach(p => {
+                for (let i = 0; i < p.letters.length; i++) {
+                    const r = (p.dir === 'H' ? p.row : p.row + i) + offsetR;
+                    const c = (p.dir === 'H' ? p.col + i : p.col) + offsetC;
+                    if (!grid[r][c]) grid[r][c] = { expected: p.letters[i], starts: [] };
+                }
+                const sr = p.row + offsetR;
+                const sc = p.col + offsetC;
+                grid[sr][sc].starts.push({ ref: p.ref, dir: p.dir, length: p.letters.length });
+            });
+
+            return { rows, cols, grid };
+        }
+
+        function computeCellSize(data) {
+            const scrollContainer = document.getElementById('grid-scroll');
+            const gap = 3;
+            const availW = scrollContainer.clientWidth - 72; 
+            const availH = scrollContainer.clientHeight - 72;
+            const rawW = (availW - gap * (data.cols - 1)) / data.cols;
+            const rawH = (availH - gap * (data.rows - 1)) / data.rows;
+            let size = Math.floor(Math.min(rawW, rawH));
+            size = Math.max(20, Math.min(size, 56));
+            return size;
+        }
+
+        function applyCellSize(data) {
+            const container = document.getElementById('crossword-grid');
+            const size = computeCellSize(data);
+            container.style.setProperty('--cell', size + 'px');
+        }
+
+        function renderGrid(data) {
+            const container = document.getElementById('crossword-grid');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${data.cols}, max-content)`;
+            container.style.gridTemplateRows = `repeat(${data.rows}, max-content)`;
+
+            for (let r = 0; r < data.rows; r++) {
+                for (let c = 0; c < data.cols; c++) {
+                    const cellData = data.grid[r][c];
+                    const wrapper = document.createElement('div');
+                    wrapper.style.gridRowStart = r + 1;
+                    wrapper.style.gridColumnStart = c + 1;
+
+                    if (!cellData) {
+                        wrapper.className = "cw-cell cw-blank";
+                        container.appendChild(wrapper);
+                        continue;
+                    }
+
+                    wrapper.className = "cw-cell";
+
+                    const input = document.createElement('input');
+                    input.type = "text";
+                    input.maxLength = 1;
+                    input.autocomplete = "off";
+                    input.spellcheck = false;
+                    input.id = `cell-${r}-${c}`;
+                    input.className = "cw-input";
+                    input.dataset.expected = cellData.expected;
+                    input.dataset.row = r;
+                    input.dataset.col = c;
+
+                    const rightCell = c + 1 < data.cols ? data.grid[r][c + 1] : null;
+                    const leftCell = c - 1 >= 0 ? data.grid[r][c - 1] : null;
+                    const downCell = r + 1 < data.rows ? data.grid[r + 1][c] : null;
+                    const upCell = r - 1 >= 0 ? data.grid[r - 1][c] : null;
+
+                    if (rightCell) input.dataset.nextRight = `cell-${r}-${c + 1}`;
+                    if (leftCell) input.dataset.prevLeft = `cell-${r}-${c - 1}`;
+                    if (downCell) input.dataset.nextDown = `cell-${r + 1}-${c}`;
+                    if (upCell) input.dataset.prevUp = `cell-${r - 1}-${c}`;
+
+                    input.addEventListener('input', onCellInput);
+                    input.addEventListener('keydown', onCellKeydown);
+                    input.addEventListener('focus', onCellFocus);
+                    input.addEventListener('click', onCellClick);
+
+                    wrapper.appendChild(input);
+
+                    cellData.starts.forEach((start, i) => {
+                        const img = document.createElement('img');
+                        img.src = start.ref.image || 'https://placehold.co/100?text=?';
+                        img.alt = start.ref.fr || start.ref.en || '';
+                        img.className = "clue-badge" + (i === 1 ? " clue-badge-2" : "");
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            activeDir = start.dir;
+                            lastClickedCellId = null;
+                            speak(start.ref);
+                            focusFirstEmptyInWord(r, c, start.dir, start.length);
+                        };
+                        img.onerror = function () { this.style.display = 'none'; };
+                        wrapper.appendChild(img);
+                    });
+
+                    container.appendChild(wrapper);
+                }
+            }
+        }
+
+        function focusFirstEmptyInWord(startR, startC, dir, length) {
+            let targetId = `cell-${startR}-${startC}`;
+            for (let i = 0; i < length; i++) {
+                const rr = dir === 'H' ? startR : startR + i;
+                const cc = dir === 'H' ? startC + i : startC;
+                const id = `cell-${rr}-${cc}`;
+                const el = document.getElementById(id);
+                if (el && !el.disabled && !el.value) { targetId = id; break; }
+            }
+            const el = document.getElementById(targetId);
+            if (el) el.focus();
+        }
+
+        function onCellClick(e) {
+            const input = e.target;
+            const hasH = !!(input.dataset.nextRight || input.dataset.prevLeft);
+            const hasV = !!(input.dataset.nextDown || input.dataset.prevUp);
+
+            if (hasH && hasV) {
+                activeDir = (lastClickedCellId === input.id) ? (activeDir === 'H' ? 'V' : 'H') : 'H';
+            } else if (hasV) {
+                activeDir = 'V';
+            } else if (hasH) {
+                activeDir = 'H';
+            }
+            lastClickedCellId = input.id;
+        }
+
+        function onCellInput(e) {
+            const input = e.target;
+            let v = input.value.toUpperCase().replace(/[^A-Z]/g, '');
+            v = v.slice(-1);
+            input.value = v;
+
+            if (v) {
+                let nextId = activeDir === 'V' ? input.dataset.nextDown : input.dataset.nextRight;
+                if (!nextId) nextId = input.dataset.nextRight || input.dataset.nextDown;
+                if (nextId) {
+                    const nextInput = document.getElementById(nextId);
+                    if (nextInput && !nextInput.disabled) nextInput.focus();
+                }
+            }
+        }
+
+        function onCellKeydown(e) {
+            const input = e.target;
+            if (e.key === 'Backspace' && !input.value) {
+                let prevId = activeDir === 'V' ? input.dataset.prevUp : input.dataset.prevLeft;
+                if (!prevId) prevId = input.dataset.prevLeft || input.dataset.prevUp;
+                if (prevId) {
+                    const prevInput = document.getElementById(prevId);
+                    if (prevInput && !prevInput.disabled) prevInput.focus();
+                }
+            }
+        }
+
+        function onCellFocus(e) {
+            const input = e.target;
+            if (input.classList.contains('wrong-cell')) {
+                input.value = '';
+                input.classList.remove('wrong-cell');
+            }
+        }
+
+        function validerGrille() {
+            const inputs = Array.from(document.querySelectorAll('.cw-input'));
+            let hasEmpty = false;
+
+            inputs.forEach(input => {
+                if (input.disabled) return; 
+                const val = (input.value || '').toUpperCase();
+                if (!val) { hasEmpty = true; return; }
+
+                if (val === input.dataset.expected) {
+                    input.classList.remove('wrong-cell');
+                    input.classList.add('correct-cell');
+                    input.disabled = true;
+                } else {
+                    input.classList.add('wrong-cell');
+                }
+            });
+
+            if (hasEmpty) {
+                afficherMessage("Remplis toutes les cases avant de valider !");
+                return;
+            }
+
+            const stillWrong = inputs.some(input => input.classList.contains('wrong-cell'));
+            if (!stillWrong) {
+                showWinScreen();
+            } else {
+                afficherMessage("Certaines lettres ne sont pas correctes, corrige les cases rouges !");
+            }
+        }
+
+        function effacerTout() {
+            document.querySelectorAll('.cw-input').forEach(input => {
+                input.disabled = false;
+                input.value = '';
+                input.classList.remove('correct-cell', 'wrong-cell');
+            });
+        }
+
+        let messageTimeout = null;
+        function afficherMessage(texte) {
+            const el = document.getElementById('message-banner');
+            el.innerText = texte;
+            el.classList.remove('opacity-0');
+            clearTimeout(messageTimeout);
+            messageTimeout = setTimeout(() => el.classList.add('opacity-0'), 2500);
+        }
+
+        function speak(wordRef) {
+            const textToSpeak = wordRef.speech || wordRef.en;
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function showWinScreen() {
+            document.getElementById('header-text').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>

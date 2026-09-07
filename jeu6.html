@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Match the Words! - VocabPlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .matched { opacity: 0.5; border-color: #22c55e !important; background-color: #f0fdf4; pointer-events: none; }
+        .error-shake { animation: shake 0.5s; border-color: #ef4444 !important; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .touch-draw { touch-action: none; cursor: crosshair; }
+    </style>
+    
+    <style id="print-styles">
+        /* On masque complètement la zone d'impression sur l'écran normal */
+        #print-area { display: none; }
+        
+        @media print {
+            body > *:not(#print-area) { display: none !important; }
+            body { background: white; margin: 0; padding: 0; }
+            #print-area { display: flex !important; flex-direction: column; width: 100%; height: 100vh; justify-content: space-between; margin: 0; padding: 0; }
+            .print-exercise { page-break-inside: avoid; height: 48vh; border: 2px solid #cbd5e1; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; box-sizing: border-box; background: white; }
+            .print-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 1.5rem; color: #333; font-weight: 600;}
+            .print-title { text-align: center; font-size: 1.4rem; font-weight: 900; margin-bottom: 1.5rem; color: #012169; text-transform: uppercase; letter-spacing: 1px;}
+            .print-match-container { display: flex; justify-content: space-between; flex: 1; min-height: 0; gap: 4rem; padding: 0 2rem; }
+            .print-col { display: flex; flex-direction: column; justify-content: space-around; width: 40%; gap: 10px; }
+            .print-item { border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; display: flex; justify-content: center; align-items: center; flex: 1; min-height: 0; }
+            .print-item img { max-height: 100%; max-width: 100%; object-fit: contain; }
+            .print-item span { font-size: 1.2rem; font-weight: 800; color: #333; }
+            @page { size: A4 portrait; margin: 10mm; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- En-tête -->
+    <header class="bg-white shadow-md p-4 flex justify-between items-center z-50 border-t-4 border-[#012169] shrink-0">
+        <h1 class="text-xl md:text-2xl font-black text-slate-700 tracking-wider">🇬🇧 VOCAB<span class="text-[#C8102E]">PLAY</span></h1>
+        <button onclick="retourMenu()" class="px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold transition-colors bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm md:text-base">
+            ← Quitter
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col min-h-0 w-full max-w-5xl mx-auto p-4 md:p-6">
+        
+        <div id="header-text" class="text-center mb-4 shrink-0">
+            <h2 id="theme-title" class="text-2xl md:text-3xl font-black text-[#012169] mb-1">Chargement...</h2>
+            <p class="text-slate-500 text-sm md:text-lg">Trace un trait pour relier l'image à son mot !</p>
+        </div>
+
+        <!-- Écran de sélection de difficulté -->
+        <div id="difficulty-screen" class="flex-1 flex flex-col items-center justify-center hidden">
+            <h3 class="text-xl md:text-2xl font-bold text-slate-700 mb-6">Choisis ton niveau :</h3>
+            <div id="difficulty-buttons" class="flex gap-4 flex-wrap justify-center"></div>
+        </div>
+
+        <!-- Écran de jeu -->
+        <div id="game-screen" class="relative flex-1 min-h-0 hidden w-full">
+            
+            <button onclick="generatePDF()" class="absolute top-2 right-2 md:top-4 md:right-4 z-[60] bg-[#012169] text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition-colors flex items-center gap-2 text-xs md:text-sm">
+                🖨️ Fiche Exercice PDF
+            </button>
+            
+            <svg id="lines-overlay" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+            
+            <div class="flex justify-between items-center w-full h-full relative z-20 px-2 sm:px-12 py-2 gap-4 pt-12 md:pt-16">
+                
+                <!-- Colonne Images : gère son espace, centre les carrés -->
+                <div id="col-images" class="flex flex-col gap-2 w-[45%] md:w-[40%] h-full justify-center"></div>
+                
+                <!-- Colonne Mots : w-fit prend la largeur du mot le plus long. items-stretch force tous les blocs à avoir cette même largeur -->
+                <div id="col-words" class="flex flex-col gap-2 w-fit min-w-[30%] max-w-[50%] h-full justify-center items-stretch"></div>
+                
+            </div>
+        </div>
+
+        <!-- Écran de victoire -->
+        <div id="win-screen" class="flex-1 flex flex-col items-center justify-center hidden">
+            <div class="text-6xl mb-4">🏆</div>
+            <h3 class="text-4xl font-black text-green-500 mb-6">Well done!</h3>
+            <div class="flex gap-4">
+                <button onclick="location.reload()" class="px-6 py-3 rounded-xl font-bold bg-[#012169] text-white shadow-md hover:bg-blue-800 transition-colors">Rejouer</button>
+                <button onclick="retourMenu()" class="px-6 py-3 rounded-xl font-bold bg-slate-200 text-slate-700 shadow-md hover:bg-slate-300 transition-colors">Retour</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function generatePDF() {
+            // Nettoyer si une ancienne zone d'impression existe
+            let printArea = document.getElementById('print-area');
+            if (printArea) printArea.remove();
+
+            printArea = document.createElement('div');
+            printArea.id = 'print-area';
+            document.body.appendChild(printArea);
+            
+            const imgCards = Array.from(document.querySelectorAll('#col-images .game-item'));
+            const wordCards = Array.from(document.querySelectorAll('#col-words .game-item'));
+            
+            const buildExercise = () => {
+                return `
+                    <div class="print-exercise">
+                        <div class="print-header">
+                            <span>Nom : _________________________</span>
+                            <span>Prénom : _________________________</span>
+                            <span>Date : ___________________</span>
+                        </div>
+                        <div class="print-title">Match the Words! - ${currentTheme ? currentTheme.name : ''}</div>
+                        <div class="print-match-container">
+                            <div class="print-col">
+                                ${imgCards.map(c => `<div class="print-item">${c.innerHTML}</div>`).join('')}
+                            </div>
+                            <div class="print-col">
+                                ${wordCards.map(c => `<div class="print-item">${c.innerHTML}</div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            printArea.innerHTML = buildExercise() + buildExercise();
+            
+            // On laisse un petit délai pour que le navigateur génère le DOM correctement avant d'imprimer
+            setTimeout(() => {
+                window.print();
+            }, 100);
+        }
+
+        // On écoute la fin de l'impression pour nettoyer proprement le DOM
+        window.addEventListener('afterprint', () => {
+            const printArea = document.getElementById('print-area');
+            if (printArea) printArea.remove();
+        });
+        
+        // Liste des mots d'anglais intégrée directement dans le code.
+        // Les images sont recherchées à côté de ce fichier HTML (même nom que le mot + .png)
+        const VOCAB_WORDS = [
+            { id: 1, en: "princess", image: "princess.png", speech: "princess" },
+            { id: 2, en: "clown", image: "clown.png", speech: "clown" },
+            { id: 3, en: "astronaut", image: "astronaut.png", speech: "astronaut" },
+            { id: 4, en: "bunny", image: "bunny.png", speech: "bunny" },
+            { id: 5, en: "witch", image: "witch.png", speech: "witch" },
+            { id: 6, en: "pumpkin", image: "pumpkin.png", speech: "pumpkin" },
+            { id: 7, en: "skeleton", image: "skeleton.png", speech: "skeleton" },
+            { id: 8, en: "pirate", image: "pirate.png", speech: "pirate" }
+        ];
+
+        let currentTheme = null;
+        let gameWords = [];
+        let matchedPairs = 0;
+        let connections = []; 
+        let isDrawing = false;
+        let startElement = null;
+        let currentLine = null;
+
+        function init() {
+            currentTheme = { name: "Costumes & Fête", words: VOCAB_WORDS };
+
+            document.getElementById('theme-title').innerText = currentTheme.name;
+            setupDifficulty();
+        }
+
+        function retourMenu() {
+            window.location.href = `index.html`;
+        }
+
+        function setupDifficulty() {
+            const totalWords = currentTheme.words.length;
+            const diffScreen = document.getElementById('difficulty-screen');
+            const diffButtons = document.getElementById('difficulty-buttons');
+            
+            diffScreen.classList.remove('hidden');
+            
+            const levels = [
+                { name: "Facile", count: 4, color: "bg-green-500 hover:bg-green-600" },
+                { name: "Moyen", count: 6, color: "bg-orange-500 hover:bg-orange-600" },
+                { name: "Difficile", count: 8, color: "bg-red-500 hover:bg-red-600" },
+                { name: "Extrême", count: 12, color: "bg-purple-600 hover:bg-purple-700" }
+            ];
+
+            levels.forEach(level => {
+                if (totalWords >= level.count) {
+                    const btn = document.createElement('button');
+                    btn.className = `${level.color} text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:scale-105`;
+                    btn.innerText = `${level.name} (${level.count})`;
+                    btn.onclick = () => startGame(level.count);
+                    diffButtons.appendChild(btn);
+                }
+            });
+
+            if (!levels.some(l => l.count === totalWords)) {
+                const btnAll = document.createElement('button');
+                btnAll.className = `bg-[#012169] hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:scale-105`;
+                btnAll.innerText = `Tous (${totalWords})`;
+                btnAll.onclick = () => startGame(totalWords);
+                diffButtons.appendChild(btnAll);
+            }
+        }
+
+        function startGame(wordCount) {
+            document.getElementById('difficulty-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            let shuffledWords = [...currentTheme.words].sort(() => 0.5 - Math.random());
+            gameWords = shuffledWords.slice(0, wordCount);
+
+            renderColumns();
+            window.addEventListener('resize', redrawLines);
+        }
+
+        function renderColumns() {
+            const colImages = document.getElementById('col-images');
+            const colWords = document.getElementById('col-words');
+
+            const imagesList = [...gameWords].sort(() => 0.5 - Math.random());
+            const wordsList = [...gameWords].sort(() => 0.5 - Math.random());
+
+            imagesList.forEach(wordObj => {
+                const imgCard = document.createElement('div');
+                imgCard.className = "game-item image-item touch-draw flex-1 min-h-0 aspect-square max-w-full mx-auto bg-white p-2 md:p-3 rounded-xl shadow border-2 border-slate-200 transition-colors flex items-center justify-center relative";
+                imgCard.dataset.id = wordObj.id;
+                imgCard.innerHTML = `<img src="${wordObj.image}" alt="Image" class="w-full h-full object-contain pointer-events-none rounded-lg" onerror="this.src='https://placehold.co/200?text=Image+Introuvable'">`;
+                imgCard.onpointerdown = startDraw;
+                colImages.appendChild(imgCard);
+            });
+
+            wordsList.forEach(wordObj => {
+                const wordCard = document.createElement('div');
+                wordCard.className = "game-item word-item touch-draw flex-1 min-h-0 bg-white px-6 sm:px-10 py-2 rounded-xl shadow border-2 border-slate-200 transition-colors flex items-center justify-center relative capitalize";
+                wordCard.dataset.id = wordObj.id;
+                wordCard.innerHTML = `<span class="text-sm sm:text-lg md:text-2xl font-black text-slate-700 pointer-events-none text-center leading-tight break-words">${wordObj.en}</span>`;
+                wordCard.onpointerdown = startDraw;
+                colWords.appendChild(wordCard);
+            });
+        }
+
+        function startDraw(e) {
+            e.preventDefault();
+            const target = e.target.closest('.game-item');
+            if (!target || target.classList.contains('matched')) return;
+
+            isDrawing = true;
+            startElement = target;
+
+            const svg = document.getElementById('lines-overlay');
+            currentLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            
+            const rect = startElement.getBoundingClientRect();
+            const svgRect = svg.getBoundingClientRect();
+            
+            const isImage = startElement.classList.contains('image-item');
+            const startX = isImage ? (rect.right - svgRect.left) : (rect.left - svgRect.left);
+            const startY = rect.top + rect.height / 2 - svgRect.top;
+
+            currentLine.setAttribute('x1', startX);
+            currentLine.setAttribute('y1', startY);
+            currentLine.setAttribute('x2', startX);
+            currentLine.setAttribute('y2', startY);
+            currentLine.setAttribute('stroke', '#012169');
+            currentLine.setAttribute('stroke-width', '6');
+            currentLine.setAttribute('stroke-linecap', 'round');
+            svg.appendChild(currentLine);
+
+            document.addEventListener('pointermove', drawMove);
+            document.addEventListener('pointerup', endDraw);
+            document.addEventListener('pointercancel', endDraw);
+        }
+
+        function drawMove(e) {
+            if (!isDrawing || !currentLine) return;
+            const svg = document.getElementById('lines-overlay');
+            const svgRect = svg.getBoundingClientRect();
+            
+            currentLine.setAttribute('x2', e.clientX - svgRect.left);
+            currentLine.setAttribute('y2', e.clientY - svgRect.top);
+        }
+
+        function endDraw(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+
+            document.removeEventListener('pointermove', drawMove);
+            document.removeEventListener('pointerup', endDraw);
+            document.removeEventListener('pointercancel', endDraw);
+
+            const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY);
+            const targetElement = elementUnderCursor ? elementUnderCursor.closest('.game-item') : null;
+
+            if (targetElement && targetElement !== startElement && !targetElement.classList.contains('matched')) {
+                const isStartImage = startElement.classList.contains('image-item');
+                const isTargetImage = targetElement.classList.contains('image-item');
+
+                if (isStartImage !== isTargetImage) {
+                    if (startElement.dataset.id === targetElement.dataset.id) {
+                        const svg = document.getElementById('lines-overlay');
+                        const rect = targetElement.getBoundingClientRect();
+                        const svgRect = svg.getBoundingClientRect();
+                        
+                        const targetX = isTargetImage ? (rect.right - svgRect.left) : (rect.left - svgRect.left);
+                        
+                        currentLine.setAttribute('x2', targetX);
+                        currentLine.setAttribute('y2', rect.top + rect.height / 2 - svgRect.top);
+                        currentLine.setAttribute('stroke', '#22c55e');
+
+                        startElement.classList.add('matched');
+                        targetElement.classList.add('matched');
+
+                        connections.push({ el1: startElement, el2: targetElement, lineEl: currentLine });
+
+                        const wordData = gameWords.find(w => w.id === startElement.dataset.id);
+                        if(wordData && wordData.speech) {
+                            const utterance = new SpeechSynthesisUtterance(wordData.speech);
+                            utterance.lang = 'en-US';
+                            window.speechSynthesis.speak(utterance);
+                        }
+
+                        matchedPairs++;
+                        if (matchedPairs === gameWords.length) {
+                            setTimeout(showWinScreen, 1000);
+                        }
+
+                        currentLine = null;
+                        startElement = null;
+                        return; 
+                    } else {
+                        targetElement.classList.add('error-shake');
+                        startElement.classList.add('error-shake');
+                        setTimeout(() => {
+                            targetElement.classList.remove('error-shake');
+                            startElement.classList.remove('error-shake');
+                        }, 500);
+                    }
+                }
+            }
+
+            if (currentLine) {
+                currentLine.remove();
+                currentLine = null;
+            }
+            startElement = null;
+        }
+
+        function redrawLines() {
+            const svg = document.getElementById('lines-overlay');
+            const svgRect = svg.getBoundingClientRect();
+
+            connections.forEach(pair => {
+                const rect1 = pair.el1.getBoundingClientRect();
+                const rect2 = pair.el2.getBoundingClientRect();
+                
+                const isEl1Image = pair.el1.classList.contains('image-item');
+                const isEl2Image = pair.el2.classList.contains('image-item');
+
+                pair.lineEl.setAttribute('x1', isEl1Image ? (rect1.right - svgRect.left) : (rect1.left - svgRect.left));
+                pair.lineEl.setAttribute('y1', rect1.top + rect1.height / 2 - svgRect.top);
+                pair.lineEl.setAttribute('x2', isEl2Image ? (rect2.right - svgRect.left) : (rect2.left - svgRect.left));
+                pair.lineEl.setAttribute('y2', rect2.top + rect2.height / 2 - svgRect.top);
+            });
+        }
+
+        function showWinScreen() {
+            document.getElementById('header-text').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>

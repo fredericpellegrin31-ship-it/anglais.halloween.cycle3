@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spelling Master - VocabPlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        .letter-tile {
+            transition: all 0.15s ease;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .letter-tile:active { transform: scale(0.92); }
+        
+        .wrong-tile {
+            background-color: #ef4444 !important;
+            color: white !important;
+            border-color: #b91c1c !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .correct-slot {
+            background-color: #22c55e !important;
+            color: white !important;
+            border-color: #15803d !important;
+            animation: pop 0.2s ease-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .success-bounce { animation: bounce 0.6s ease-in-out; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- En-tête -->
+    <header class="bg-white shadow-md p-4 flex justify-between items-center z-50 border-t-4 border-[#012169] shrink-0">
+        <h1 class="text-xl md:text-2xl font-black text-slate-700 tracking-wider">🇬🇧 VOCAB<span class="text-[#C8102E]">PLAY</span></h1>
+        <button onclick="retourMenuPrincipal()" class="px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold transition-colors bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm md:text-base flex items-center gap-2">
+            🏠 Menu Principal
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col min-h-0 w-full max-w-3xl mx-auto p-4 md:p-6 items-center">
+        
+        <div id="header-text" class="text-center mb-2 shrink-0">
+            <h2 id="theme-title" class="text-2xl md:text-3xl font-black text-[#012169]">Chargement...</h2>
+            <p id="level-subtitle" class="text-slate-500 text-sm md:text-base">Écris le mot correspondant à l'image !</p>
+        </div>
+
+        <!-- 1. ÉCRAN DE SÉLECTION DU NIVEAU -->
+        <div id="difficulty-screen" class="flex-1 flex flex-col items-center justify-center w-full gap-4 my-auto">
+            <h3 class="text-xl md:text-2xl font-bold text-slate-700 mb-2">Choisis ton niveau :</h3>
+            
+            <button onclick="selectLevel(1)" class="w-full max-w-md bg-green-500 hover:bg-green-600 text-white font-bold p-4 rounded-2xl shadow-lg transition-transform hover:scale-102 text-left flex items-center justify-between">
+                <div>
+                    <div class="text-lg font-black">🟢 Niveau 1 : Facile</div>
+                    <div class="text-xs text-green-100 mt-1">Audio automatique • Lettres exactes dans le désordre</div>
+                </div>
+                <span class="text-2xl">🔊</span>
+            </button>
+
+            <button onclick="selectLevel(2)" class="w-full max-w-md bg-orange-500 hover:bg-orange-600 text-white font-bold p-4 rounded-2xl shadow-lg transition-transform hover:scale-102 text-left flex items-center justify-between">
+                <div>
+                    <div class="text-lg font-black">🟠 Niveau 2 : Moyen</div>
+                    <div class="text-xs text-orange-100 mt-1">Pas d'audio • Lettres dans le désordre + lettres pièges</div>
+                </div>
+                <span class="text-2xl">🔤</span>
+            </button>
+
+            <button onclick="selectLevel(3)" class="w-full max-w-md bg-red-500 hover:bg-red-600 text-white font-bold p-4 rounded-2xl shadow-lg transition-transform hover:scale-102 text-left flex items-center justify-between">
+                <div>
+                    <div class="text-lg font-black">🔴 Niveau 3 : Difficile</div>
+                    <div class="text-xs text-red-100 mt-1">Pas d'audio • Image seule • Écris le mot complet</div>
+                </div>
+                <span class="text-2xl">⌨️</span>
+            </button>
+        </div>
+
+        <!-- 2. ÉCRAN DE JEU -->
+        <div id="game-screen" class="flex-1 flex flex-col items-center justify-between w-full min-h-0 hidden gap-3 py-2">
+            
+            <!-- Progression -->
+            <div class="flex items-center justify-between w-full text-xs font-bold text-slate-400 px-2 shrink-0">
+                <span id="progress-text">Mot 1 / 10</span>
+                <button onclick="changerNiveau()" class="text-xs text-blue-600 underline font-semibold hover:text-blue-800">Changer de niveau</button>
+                <span id="level-badge" class="px-2.5 py-1 rounded-full text-white bg-slate-600 font-bold">Niveau 1</span>
+            </div>
+
+            <!-- Carte Image + Bouton Audio -->
+            <div class="relative flex-1 min-h-0 w-full flex flex-col items-center justify-center">
+                <div class="relative h-full max-h-[220px] aspect-square bg-white p-2 rounded-2xl shadow-md border-2 border-slate-200 flex items-center justify-center overflow-hidden">
+                    <img id="word-image" src="" alt="Mot à deviner" class="w-full h-full object-contain rounded-xl">
+                    
+                    <!-- Bouton écoute (Niveau 1 uniquement) -->
+                    <button id="btn-audio" onclick="playAudio()" class="absolute bottom-3 right-3 bg-[#012169] hover:bg-blue-800 text-white p-3 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center">
+                        <span class="text-xl">🔊</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zone de réponse -->
+            <div id="answer-container" class="w-full flex flex-col items-center gap-2 shrink-0">
+                <!-- Niveaux 1 & 2 : Emplacements des lettres -->
+                <div id="target-slots" class="flex flex-wrap justify-center gap-2 min-h-[56px] p-3 bg-slate-200/60 rounded-2xl w-full border-2 border-dashed border-slate-300"></div>
+
+                <!-- Niveau 3 : Champ de saisie libre -->
+                <div id="direct-input-container" class="hidden w-full max-w-md">
+                    <input type="text" id="direct-input" placeholder="Écris le mot en anglais..." autocomplete="off" spellcheck="false" class="w-full p-3 text-center text-2xl font-black tracking-widest text-[#012169] bg-white border-4 border-slate-300 rounded-2xl shadow-inner outline-none focus:border-[#012169]">
+                </div>
+            </div>
+
+            <!-- Niveaux 1 & 2 : Réserve de lettres disponibles -->
+            <div id="letters-pool" class="flex flex-wrap justify-center gap-2 w-full shrink-0 min-h-[64px] p-2"></div>
+
+            <!-- Niveau 3 : Boutons Valider / Effacer -->
+            <div id="level3-actions" class="hidden flex gap-3 w-full max-w-md shrink-0">
+                <button onclick="effacerSaisieNiveau3()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl shadow transition-colors text-sm md:text-base">
+                    🧹 Effacer
+                </button>
+                <button onclick="validerNiveau3()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow transition-colors text-sm md:text-base">
+                    ✓ Valider
+                </button>
+            </div>
+
+        </div>
+
+        <!-- 3. ÉCRAN DE VICTOIRE -->
+        <div id="win-screen" class="flex-1 flex flex-col items-center justify-center hidden my-auto text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <h3 class="text-3xl font-black text-green-500 mb-2">Well done!</h3>
+            <p id="win-message" class="text-slate-600 font-bold mb-6">Tu as réussi tous les mots de ce thème !</p>
+            <div class="flex gap-4">
+                <button onclick="location.reload()" class="px-6 py-3 rounded-xl font-bold bg-[#012169] text-white shadow-md hover:bg-blue-800 transition-colors">Rejouer</button>
+                <button onclick="retourMenuPrincipal()" class="px-6 py-3 rounded-xl font-bold bg-slate-200 text-slate-700 shadow-md hover:bg-slate-300 transition-colors">Menu Principal</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Liste des mots d'anglais intégrée directement dans le code.
+        // Les images sont recherchées à côté de ce fichier HTML (même nom que le mot + .png)
+        const VOCAB_WORDS = [
+            { id: 1, en: "princess", image: "princess.png", speech: "princess" },
+            { id: 2, en: "clown", image: "clown.png", speech: "clown" },
+            { id: 3, en: "astronaut", image: "astronaut.png", speech: "astronaut" },
+            { id: 4, en: "bunny", image: "bunny.png", speech: "bunny" },
+            { id: 5, en: "witch", image: "witch.png", speech: "witch" },
+            { id: 6, en: "pumpkin", image: "pumpkin.png", speech: "pumpkin" },
+            { id: 7, en: "skeleton", image: "skeleton.png", speech: "skeleton" },
+            { id: 8, en: "pirate", image: "pirate.png", speech: "pirate" }
+        ];
+
+        let currentTheme = null;
+        let gameWords = [];
+        let currentIndex = 0;
+        let currentLevel = 1;
+        
+        let currentWordObj = null;
+        let targetLetters = []; 
+        let placedCount = 0;    
+        let poolLetters = [];   
+
+        function init() {
+            currentTheme = { name: "Costumes & Fête", words: VOCAB_WORDS };
+
+            document.getElementById('theme-title').innerText = currentTheme.name;
+        }
+
+        function retourMenuPrincipal() {
+            window.location.href = `index.html`;
+        }
+
+        function changerNiveau() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('difficulty-screen').classList.remove('hidden');
+        }
+
+        function selectLevel(level) {
+            currentLevel = level;
+            document.getElementById('difficulty-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            const badge = document.getElementById('level-badge');
+            if(level === 1) { badge.innerText = "Niveau 1 • Facile"; badge.className = "px-2.5 py-1 rounded-full text-white bg-green-500 font-bold text-xs"; }
+            if(level === 2) { badge.innerText = "Niveau 2 • Moyen"; badge.className = "px-2.5 py-1 rounded-full text-white bg-orange-500 font-bold text-xs"; }
+            if(level === 3) { badge.innerText = "Niveau 3 • Difficile"; badge.className = "px-2.5 py-1 rounded-full text-white bg-red-500 font-bold text-xs"; }
+
+            gameWords = [...currentTheme.words].sort(() => 0.5 - Math.random());
+            currentIndex = 0;
+
+            setupKeyboardListener();
+            loadWord();
+        }
+
+        function loadWord() {
+            if (currentIndex >= gameWords.length) {
+                showWinScreen();
+                return;
+            }
+
+            currentWordObj = gameWords[currentIndex];
+            document.getElementById('progress-text').innerText = `Mot ${currentIndex + 1} / ${gameWords.length}`;
+            document.getElementById('word-image').src = currentWordObj.image || 'https://placehold.co/300?text=Image';
+
+            const cleanWord = currentWordObj.en.trim().toUpperCase();
+            targetLetters = cleanWord.split('');
+            placedCount = 0;
+
+            // Audio au niveau 1 uniquement
+            const btnAudio = document.getElementById('btn-audio');
+            if (currentLevel === 1) {
+                btnAudio.classList.remove('hidden');
+                setTimeout(playAudio, 300);
+            } else {
+                btnAudio.classList.add('hidden');
+            }
+
+            const slotsContainer = document.getElementById('target-slots');
+            const poolContainer = document.getElementById('letters-pool');
+            const directInputContainer = document.getElementById('direct-input-container');
+            const level3Actions = document.getElementById('level3-actions');
+            const directInput = document.getElementById('direct-input');
+
+            if (currentLevel === 3) {
+                // Mode 3 : Saisie au clavier
+                slotsContainer.classList.add('hidden');
+                poolContainer.classList.add('hidden');
+                directInputContainer.classList.remove('hidden');
+                level3Actions.classList.remove('hidden');
+                directInput.value = '';
+                setTimeout(() => directInput.focus(), 100);
+            } else {
+                // Modes 1 et 2 : Tuiles de lettres
+                slotsContainer.classList.remove('hidden');
+                poolContainer.classList.remove('hidden');
+                directInputContainer.classList.add('hidden');
+                level3Actions.classList.add('hidden');
+
+                let chars = [...targetLetters];
+                if (currentLevel === 2) {
+                    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    const extraCount = cleanWord.length <= 4 ? 3 : 4;
+                    for (let i = 0; i < extraCount; i++) {
+                        chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+                    }
+                }
+
+                chars.sort(() => 0.5 - Math.random());
+                poolLetters = chars.map((c, i) => ({ id: i, char: c, state: 'normal', placed: false }));
+
+                renderTilesGame();
+            }
+        }
+
+        function renderTilesGame() {
+            // Rendu des emplacements du mot (carrés grisés / lettres correctes vertes)
+            const slotsContainer = document.getElementById('target-slots');
+            slotsContainer.innerHTML = '';
+
+            targetLetters.forEach((char, index) => {
+                const slot = document.createElement('div');
+                if (index < placedCount) {
+                    // Lettre validée (Verte)
+                    slot.className = "correct-slot font-black text-xl md:text-2xl w-10 h-10 md:w-12 md:h-12 rounded-xl shadow flex items-center justify-center border-b-4";
+                    slot.innerText = char;
+                } else if (index === placedCount) {
+                    // Prochaine lettre attendue (Carré grisé actif)
+                    slot.className = "w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-300 border-2 border-dashed border-blue-500 flex items-center justify-center animate-pulse";
+                } else {
+                    // Carré grisé d'attente
+                    slot.className = "w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-200 border-2 border-slate-300 flex items-center justify-center";
+                }
+                slotsContainer.appendChild(slot);
+            });
+
+            // Rendu de la réserve de lettres
+            const poolContainer = document.getElementById('letters-pool');
+            poolContainer.innerHTML = '';
+
+            poolLetters.forEach((item) => {
+                if (item.placed) {
+                    // Lettre déjà trouvée : on garde son emplacement (case grisée vide)
+                    // pour que les autres lettres ne se resserrent pas.
+                    const placeholder = document.createElement('div');
+                    placeholder.className = "w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-200/60 border-2 border-slate-200";
+                    poolContainer.appendChild(placeholder);
+                    return;
+                }
+
+                const tile = document.createElement('button');
+                const baseClasses = "letter-tile font-black text-xl md:text-2xl w-10 h-10 md:w-12 md:h-12 rounded-xl shadow flex items-center justify-center border-2 ";
+                
+                if (item.state === 'wrong') {
+                    tile.className = baseClasses + "wrong-tile";
+                } else {
+                    tile.className = baseClasses + "bg-white text-slate-800 border-slate-300 hover:border-[#012169]";
+                }
+                
+                tile.innerText = item.char;
+                tile.onclick = () => handleTileClick(item);
+                poolContainer.appendChild(tile);
+            });
+        }
+
+        function handleTileClick(item) {
+            if (item.placed || item.state === 'wrong') return;
+
+            const expectedChar = targetLetters[placedCount];
+
+            if (item.char === expectedChar) {
+                // BONNE LETTRE -> Se place en vert dans le mot
+                item.placed = true;
+                placedCount++;
+                renderTilesGame();
+
+                // Mot terminé
+                if (placedCount === targetLetters.length) {
+                    playAudio();
+                    const container = document.getElementById('target-slots');
+                    container.classList.add('success-bounce');
+
+                    setTimeout(() => {
+                        container.classList.remove('success-bounce');
+                        currentIndex++;
+                        loadWord();
+                    }, 850);
+                }
+            } else {
+                // MAUVAISE LETTRE -> Clignote en rouge sans se placer
+                item.state = 'wrong';
+                renderTilesGame();
+
+                setTimeout(() => {
+                    item.state = 'normal';
+                    renderTilesGame();
+                }, 400);
+            }
+        }
+
+        // --- GESTION DU NIVEAU 3 (Saisie libre) ---
+        function validerNiveau3() {
+            const input = document.getElementById('direct-input');
+            const userText = input.value.trim().toUpperCase();
+            const targetText = targetLetters.join('');
+
+            if (userText === targetText) {
+                playAudio();
+                input.classList.add('border-green-500', 'bg-green-50', 'success-bounce');
+
+                setTimeout(() => {
+                    input.classList.remove('border-green-500', 'bg-green-50', 'success-bounce');
+                    currentIndex++;
+                    loadWord();
+                }, 850);
+            } else {
+                input.classList.add('border-red-500', 'bg-red-50', 'error-shake');
+                setTimeout(() => {
+                    input.classList.remove('border-red-500', 'bg-red-50', 'error-shake');
+                }, 500);
+            }
+        }
+
+        function effacerSaisieNiveau3() {
+            const input = document.getElementById('direct-input');
+            input.value = '';
+            input.focus();
+        }
+
+        function playAudio() {
+            if (!currentWordObj) return;
+            const textToSpeak = currentWordObj.speech || currentWordObj.en;
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function setupKeyboardListener() {
+            document.removeEventListener('keydown', handleGlobalKeydown);
+            document.addEventListener('keydown', handleGlobalKeydown);
+        }
+
+        function handleGlobalKeydown(e) {
+            if (document.getElementById('game-screen').classList.contains('hidden')) return;
+
+            if (currentLevel === 3) {
+                if (e.key === 'Enter') {
+                    validerNiveau3();
+                }
+                return;
+            }
+
+            // Pour Niveaux 1 et 2 via clavier physique
+            if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                const pressedKey = e.key.toUpperCase();
+                const matchingTile = poolLetters.find(l => !l.placed && l.char === pressedKey);
+                
+                if (matchingTile) {
+                    handleTileClick(matchingTile);
+                } else {
+                    // Si la touche pressée n'est pas dans les choix
+                    const expectedChar = targetLetters[placedCount];
+                    if (pressedKey !== expectedChar) {
+                        const slots = document.getElementById('target-slots');
+                        slots.classList.add('wrong-tile');
+                        setTimeout(() => slots.classList.remove('wrong-tile'), 400);
+                    }
+                }
+            }
+        }
+
+        function showWinScreen() {
+            document.getElementById('header-text').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>
